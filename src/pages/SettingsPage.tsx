@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   User,
   Palette,
@@ -6,31 +6,70 @@ import {
   RefreshCw,
   Bell,
   Lock,
-  AlertCircle,
-  Download, 
-  Trash2, 
+  Download,
+  Trash2,
   Settings as SettingsIcon,
   DownloadCloud,
   CloudOff,
   ChevronRight,
-  LogOut,
-  Check
+  Check,
+  HelpCircle,
+  Send,
+  Bot,
+  MessageCircle,
+  Eye,
+  Ghost,
+  X
 } from 'lucide-react';
-import { useTheme } from '../hooks/useUI';
 import { useDataExport } from '../hooks/useDatabase';
 import { useSync } from '../hooks/useSync';
 import { useSecurity } from '../contexts/SecurityContext';
+import { db } from '../db';
 
-type SettingsTab = 'profile' | 'appearance' | 'privacy' | 'sync' | 'reminders';
+type SettingsTab = 'profile' | 'appearance' | 'privacy' | 'sync' | 'reminders' | 'help';
+
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'bot';
+  text: string;
+  timestamp: number;
+}
 
 export const SettingsPage: React.FC = () => {
-  const { theme, toggleTheme } = useTheme();
-  const { exportToFile, isExporting } = useDataExport();
-  const { status, isLoggedIn, user, errorMsg, sync, restore, logout, setErrorMsg } = useSync();
-  const { setupPassword } = useSecurity();
+  const { exportToFile } = useDataExport();
+  const { status, isLoggedIn, user, errorMsg, sync, restore, logout } = useSync();
+  const { setupPassword, isGhostMode, isGhostSetupRequired, setupGhostPassphrase, unlockGhostMode, lockGhostMode } = useSecurity();
   const [activeTab, setActiveTab] = useState<SettingsTab>('privacy');
   const [isEncryptionEnabled, setIsEncryptionEnabled] = useState(true);
   const [isBiometricEnabled, setIsBiometricEnabled] = useState(true);
+
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    { id: '1', role: 'bot', text: "Hello! I'm the Ghost assistant. How can I help you today?", timestamp: Date.now() }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [isGhostModalOpen, setIsGhostModalOpen] = useState(false);
+  const [ghostMode, setGhostMode] = useState<'locked' | 'unlocked' | 'setup'>('locked');
+  const [ghostPassphrase, setGhostPassphrase] = useState('');
+  const [ghostConfirmPassphrase, setGhostConfirmPassphrase] = useState('');
+  const [ghostError, setGhostError] = useState('');
+  const [ghostProcessing, setGhostProcessing] = useState(false);
+
+  useEffect(() => {
+    if (isGhostMode) {
+      setGhostMode('unlocked');
+    } else if (isGhostSetupRequired) {
+      setGhostMode('setup');
+    } else {
+      setGhostMode('locked');
+    }
+  }, [isGhostMode, isGhostSetupRequired]);
+
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
 
   const handleChangePassword = async () => {
     const newPass = prompt('Enter new password:');
@@ -47,18 +86,131 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
+  const handleGhostCommand = async () => {
+    setIsGhostModalOpen(true);
+    setGhostError('');
+    setGhostPassphrase('');
+    setGhostConfirmPassphrase('');
+  };
+
+  const handleGhostSubmit = async () => {
+    setGhostError('');
+    setGhostProcessing(true);
+
+    try {
+      if (ghostMode === 'setup') {
+        if (ghostPassphrase.length < 4) {
+          setGhostError('Passphrase must be at least 4 characters');
+          setGhostProcessing(false);
+          return;
+        }
+        if (ghostPassphrase !== ghostConfirmPassphrase) {
+          setGhostError('Passphrases do not match');
+          setGhostProcessing(false);
+          return;
+        }
+        await setupGhostPassphrase(ghostPassphrase);
+        await convertAllEntriesToGhost();
+      } else {
+        const success = await unlockGhostMode(ghostPassphrase);
+        if (!success) {
+          setGhostError('Incorrect passphrase');
+          setGhostProcessing(false);
+          return;
+        }
+      }
+      setIsGhostModalOpen(false);
+      setGhostPassphrase('');
+      setGhostConfirmPassphrase('');
+    } catch (e) {
+      setGhostError('An error occurred. Please try again.');
+    }
+    setGhostProcessing(false);
+  };
+
+  const convertAllEntriesToGhost = async () => {
+    try {
+      await db.entries.where('isHidden').equals(0).modify({ isHidden: true });
+    } catch (e) {
+      console.error('Failed to convert entries to ghost:', e);
+    }
+  };
+
+  const handleChatSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      text: chatInput.trim(),
+      timestamp: Date.now()
+    };
+
+    setChatMessages(prev => [...prev, userMessage]);
+    setChatInput('');
+
+    if (userMessage.text.toLowerCase() === '/ghost') {
+      handleGhostCommand();
+      const botResponse: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'bot',
+        text: 'I\'ve opened the Ghost Mode panel. Enter your secret passphrase to unlock hidden entries, or set up a new one.',
+        timestamp: Date.now()
+      };
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, botResponse]);
+      }, 500);
+      return;
+    }
+
+    setTimeout(() => {
+      const botResponses: Record<string, string> = {
+        'encryption': 'Great question! End-to-end encryption is enabled by default. Your journal entries are encrypted on your device using AES-256 encryption before being synced to Google Drive.',
+        'export': 'Yes! Go to Privacy & Security settings and tap on "Export Journals" to download your data in PDF or JSON format.',
+        'backup': 'Your journal is automatically backed up to your Google Drive account. You can restore it anytime from the Sync settings.',
+        'password': 'You can change your app password in the Privacy & Security section. Your password is stored locally and never sent to any server.',
+        'privacy': 'Ghost uses end-to-end encryption and stores all data locally on your device. We prioritize your privacy above all else.',
+        'default': 'I\'m not sure about that. You can try asking about encryption, export, backup, password, or privacy!'
+      };
+
+      const lowerText = userMessage.text.toLowerCase();
+      let response = botResponses['default'];
+
+      if (lowerText.includes('encrypt') || lowerText.includes('security')) {
+        response = botResponses['encryption'];
+      } else if (lowerText.includes('export') || lowerText.includes('download')) {
+        response = botResponses['export'];
+      } else if (lowerText.includes('backup') || lowerText.includes('sync')) {
+        response = botResponses['backup'];
+      } else if (lowerText.includes('password') || lowerText.includes('pin')) {
+        response = botResponses['password'];
+      } else if (lowerText.includes('privacy') || lowerText.includes('safe')) {
+        response = botResponses['privacy'];
+      }
+
+      const botMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'bot',
+        text: response,
+        timestamp: Date.now()
+      };
+      setChatMessages(prev => [...prev, botMessage]);
+    }, 800);
+  };
+
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'privacy', label: 'Privacy & Security', icon: ShieldCheck },
     { id: 'sync', label: 'Sync', icon: RefreshCw },
     { id: 'reminders', label: 'Reminders', icon: Bell },
+    { id: 'help', label: 'Help', icon: HelpCircle },
   ] as const;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row gap-8">
-        {/* Sidebar Tabs */}
         <aside className="w-full md:w-64 flex-shrink-0">
           <div className="sticky top-8 space-y-1">
             {tabs.map((tab) => (
@@ -77,19 +229,23 @@ export const SettingsPage: React.FC = () => {
             ))}
           </div>
           
-          {/* User Profile Summary (Bottom Sidebar) */}
           <div className="mt-12 p-4 bg-gray-50 dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-500 font-black text-xs">
+              <div className="w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-500 font-black text-xs relative">
                 {user ? user.name.charAt(0) : '?'}
+                {isGhostMode && (
+                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                    <Ghost size={10} className="text-white" />
+                  </div>
+                )}
               </div>
               <div>
-                 <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">
-                   {user ? user.name : 'Guest User'}
-                 </p>
-                 <p className="text-[10px] text-gray-500 font-medium">
-                   {isLoggedIn ? (status === 'syncing' ? 'Syncing...' : 'Cloud Connected') : 'Offline Mode'}
-                 </p>
+                <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">
+                  {user ? user.name : 'Guest User'}
+                </p>
+                <p className="text-[10px] text-gray-500 font-medium">
+                  {isLoggedIn ? (status === 'syncing' ? 'Syncing...' : 'Cloud Connected') : 'Offline Mode'}
+                </p>
               </div>
             </div>
             {!isLoggedIn ? (
@@ -110,7 +266,6 @@ export const SettingsPage: React.FC = () => {
           </div>
         </aside>
 
-        {/* Content Area */}
         <main className="flex-1">
           <div className="mb-8">
             <h1 className="text-4xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
@@ -121,17 +276,16 @@ export const SettingsPage: React.FC = () => {
               {activeTab === 'profile' && 'Manage your personal information and public profile.'}
               {activeTab === 'sync' && 'Sync your journal data across all your devices securely.'}
               {activeTab === 'appearance' && 'Customize how Ghost looks and feels on your device.'}
+              {activeTab === 'help' && 'Get help and support with using Ghost journal.'}
             </p>
           </div>
 
           <div className="space-y-12">
             {activeTab === 'privacy' && (
               <>
-                {/* Access Control */}
                 <section>
                   <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Access Control</h3>
                   <div className="bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm">
-                    {/* Encryption Toggle */}
                     <div className="p-6 flex items-center justify-between border-b border-gray-50 dark:border-gray-800">
                       <div className="flex items-start gap-4">
                         <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center text-primary-500">
@@ -139,7 +293,7 @@ export const SettingsPage: React.FC = () => {
                         </div>
                         <div>
                           <p className="text-sm font-bold text-gray-900 dark:text-white">End-to-End Encryption</p>
-                          <p className="text-xs text-gray-500 mt-0.5">Journal entries are encrypted on your device. Only you hold the keys. <button className="text-primary-500 font-bold hover:underline">Learn more</button></p>
+                          <p className="text-xs text-gray-500 mt-0.5">Journal entries are encrypted on your device. Only you hold the keys.</p>
                         </div>
                       </div>
                       <button 
@@ -150,7 +304,6 @@ export const SettingsPage: React.FC = () => {
                       </button>
                     </div>
 
-                    {/* Passcode Lock */}
                     <div className="p-6 flex items-center justify-between border-b border-gray-50 dark:border-gray-800">
                       <div className="flex items-start gap-4">
                         <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-400">
@@ -161,15 +314,14 @@ export const SettingsPage: React.FC = () => {
                           <p className="text-xs text-gray-500 mt-0.5">Require a 6-digit PIN to open the application.</p>
                         </div>
                       </div>
-                      <button 
-                        onClick={handleChangePassword}
-                        className="text-xs font-bold text-primary-500 hover:text-primary-600"
-                      >
-                        Change PIN
-                      </button>
+                        <button 
+                          onClick={handleChangePassword}
+                          className="text-xs font-bold text-primary-500 hover:text-primary-600"
+                        >
+                          Change PIN
+                        </button>
                     </div>
 
-                    {/* Biometric */}
                     <div className="p-6 flex items-center justify-between">
                       <div className="flex items-start gap-4">
                         <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-400">
@@ -190,11 +342,47 @@ export const SettingsPage: React.FC = () => {
                   </div>
                 </section>
 
-                {/* Data Management */}
+                <section>
+                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Ghost Mode</h3>
+                  <div className="bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm">
+                    <div className="p-6 flex items-center justify-between border-b border-gray-50 dark:border-gray-800">
+                      <div className="flex items-start gap-4">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isGhostMode ? 'bg-green-100 dark:bg-green-900/30 text-green-500' : 'bg-gray-50 dark:bg-gray-800 text-gray-400'}`}>
+                           {isGhostMode ? <Eye size={20} /> : <Ghost size={20} />}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-900 dark:text-white">Ghost Mode</p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {isGhostMode 
+                              ? 'Hidden entries are visible. Type /ghost in help to hide them again.' 
+                              : 'All entries are hidden. Enter passphrase to reveal.'}
+                          </p>
+                        </div>
+                      </div>
+                      {isGhostMode && (
+                        <button 
+                          onClick={lockGhostMode}
+                          className="text-xs font-bold text-red-500 hover:text-red-600"
+                        >
+                          Lock Now
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="p-6">
+                      <button 
+                        onClick={handleGhostCommand}
+                        className="w-full py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-bold rounded-xl transition-all"
+                      >
+                        {ghostMode === 'setup' ? 'Set Up Ghost Mode' : ghostMode === 'unlocked' ? 'Manage Ghost Mode' : 'Unlock Ghost Mode'}
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
                 <section>
                   <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Data Management</h3>
                   <div className="bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm">
-                    {/* Export */}
                     <button 
                       onClick={exportToFile}
                       className="w-full p-6 flex items-center justify-between border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 group transition-all"
@@ -211,7 +399,6 @@ export const SettingsPage: React.FC = () => {
                       <ChevronRight size={18} className="text-gray-300 group-hover:text-primary-500 transition-colors" />
                     </button>
 
-                    {/* Clear Data */}
                     <button className="w-full p-6 flex items-center justify-between hover:bg-red-50 dark:hover:bg-red-900/10 group transition-all">
                       <div className="flex items-start gap-4">
                         <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500">
@@ -231,7 +418,6 @@ export const SettingsPage: React.FC = () => {
 
             {activeTab === 'sync' && (
               <div className="space-y-8">
-                {/* Sync Status Card */}
                 <div className={`rounded-[2.5rem] p-8 text-white shadow-xl transition-all duration-500 relative overflow-hidden ${
                   status === 'success' ? 'bg-gradient-to-br from-green-500 to-green-700 shadow-green-500/20' :
                   status === 'error' ? 'bg-gradient-to-br from-red-500 to-red-700 shadow-red-500/20' :
@@ -312,7 +498,6 @@ export const SettingsPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Storage Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-white dark:bg-gray-900 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Privacy Note</p>
@@ -332,7 +517,76 @@ export const SettingsPage: React.FC = () => {
               </div>
             )}
 
-            {/* Protocol Footer */}
+            {activeTab === 'help' && (
+              <div className="space-y-6">
+                <div className="bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm">
+                  <div className="p-6 border-b border-gray-50 dark:border-gray-800">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                      <Bot size={18} className="text-primary-500" />
+                      Ghost AI Assistant
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-1">Ask me anything about using Ghost journal. Type <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs font-medium">/ghost</kbd> to access hidden entries.</p>
+                  </div>
+                  
+                  <div className="h-96 flex flex-col">
+                    <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 space-y-4">
+                      {chatMessages.map((message) => (
+                        <div key={message.id} className={`flex items-start gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${message.role === 'bot' ? 'bg-primary-100 dark:bg-primary-900/30' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                            {message.role === 'bot' ? <Bot size={16} className="text-primary-500" /> : <span className="text-xs font-bold text-gray-600 dark:text-gray-300">You</span>}
+                          </div>
+                          <div className={`rounded-2xl px-4 py-3 max-w-[80%] ${message.role === 'user' ? 'bg-primary-500 text-white rounded-tr-none' : 'bg-gray-50 dark:bg-gray-800 rounded-tl-none'}`}>
+                            <p className="text-xs">{message.text}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <form onSubmit={handleChatSubmit} className="p-4 border-t border-gray-50 dark:border-gray-800">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          placeholder="Type your question or /ghost..."
+                          className="flex-1 px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                        <button type="submit" className="p-3 bg-primary-500 hover:bg-primary-600 text-white rounded-xl transition-colors">
+                          <Send size={16} />
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <a href="#" className="p-6 bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 hover:border-primary-500/30 transition-colors group">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center text-primary-500 group-hover:scale-110 transition-transform">
+                        <MessageCircle size={20} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-gray-900 dark:text-white">FAQ</p>
+                        <p className="text-xs text-gray-500 mt-0.5">Browse frequently asked questions</p>
+                      </div>
+                    </div>
+                  </a>
+                  
+                  <a href="#" className="p-6 bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 hover:border-primary-500/30 transition-colors group">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center text-primary-500 group-hover:scale-110 transition-transform">
+                        <HelpCircle size={20} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-gray-900 dark:text-white">Documentation</p>
+                        <p className="text-xs text-gray-500 mt-0.5">Read the full user guide</p>
+                      </div>
+                    </div>
+                  </a>
+                </div>
+              </div>
+            )}
+
             <div className="pt-12 text-center">
                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Ghost Protocol V2.4.1</p>
                <p className="text-xs text-gray-400 max-w-sm mx-auto leading-relaxed">
@@ -342,6 +596,69 @@ export const SettingsPage: React.FC = () => {
           </div>
         </main>
       </div>
+
+      {isGhostModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="relative w-full max-w-sm bg-white dark:bg-gray-900 rounded-[2rem] shadow-2xl overflow-hidden">
+            <button 
+              onClick={() => setIsGhostModalOpen(false)}
+              className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <X size={20} />
+            </button>
+            
+            <div className="p-8 text-center">
+              <div className={`w-16 h-16 mx-auto mb-4 rounded-[2rem] flex items-center justify-center ${ghostMode === 'unlocked' ? 'bg-green-100 dark:bg-green-900/30 text-green-500' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
+                {ghostMode === 'unlocked' ? <Eye size={28} strokeWidth={2.5} /> : <Ghost size={28} strokeWidth={2.5} />}
+              </div>
+              
+              <h2 className="text-xl font-black text-gray-900 dark:text-white mb-2">
+                {ghostMode === 'setup' ? 'Set Up Ghost Mode' : ghostMode === 'unlocked' ? 'Ghost Mode Active' : 'Unlock Ghost Mode'}
+              </h2>
+              
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                {ghostMode === 'setup' 
+                  ? 'Create a secret passphrase to hide all your entries. You\'ll need this to access them later.'
+                  : ghostMode === 'unlocked'
+                  ? 'Your hidden entries are now visible. They will be hidden again when Ghost Mode locks.'
+                  : 'Enter your secret passphrase to reveal hidden entries.'}
+              </p>
+
+              {ghostError && (
+                <p className="text-red-500 text-xs font-bold mb-4 animate-pulse">{ghostError}</p>
+              )}
+
+              <div className="space-y-4">
+                <input
+                  type="password"
+                  value={ghostPassphrase}
+                  onChange={(e) => setGhostPassphrase(e.target.value)}
+                  placeholder={ghostMode === 'setup' ? 'Create Passphrase' : 'Enter Passphrase'}
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 font-bold text-center"
+                />
+                
+                {ghostMode === 'setup' && (
+                  <input
+                    type="password"
+                    value={ghostConfirmPassphrase}
+                    onChange={(e) => setGhostConfirmPassphrase(e.target.value)}
+                    placeholder="Confirm Passphrase"
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 font-bold text-center"
+                  />
+                )}
+
+                <button
+                  onClick={handleGhostSubmit}
+                  disabled={ghostProcessing}
+                  className="w-full py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-bold rounded-xl transition-all active:scale-95"
+                >
+                  {ghostProcessing ? 'Processing...' : ghostMode === 'setup' ? 'Hide All Entries' : 'Unlock'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

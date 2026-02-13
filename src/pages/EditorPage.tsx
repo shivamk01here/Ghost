@@ -102,6 +102,7 @@ export const EditorPage = () => {
         weather: weather || undefined,
         device,
         isFavorite,
+        isHidden: false,
         updatedAt: now
       };
 

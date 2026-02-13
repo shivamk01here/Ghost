@@ -2,9 +2,19 @@ import { useEffect, useState, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, createEntry, updateEntry, deleteEntry, searchEntries, getAllTags, getSettings, updateSettings, exportData, importData } from '../db';
 import type { JournalEntry, AppSettings, SearchFilters } from '../types';
+import { useSecurity } from '../contexts/SecurityContext';
 
 export const useEntries = () => {
-  const entries = useLiveQuery(() => db.entries.orderBy('createdAt').reverse().toArray(), []);
+  const { isGhostMode } = useSecurity();
+  const entries = useLiveQuery(
+    () => {
+      if (isGhostMode) {
+        return db.entries.orderBy('createdAt').reverse().toArray();
+      }
+      return db.entries.where('isHidden').equals(0).reverse().toArray();
+    },
+    [isGhostMode]
+  );
   return { entries: entries || [], isLoading: entries === undefined };
 };
 
@@ -20,16 +30,17 @@ export const useEntry = (id: string | null) => {
 export const useTags = () => {
   const [tags, setTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { isGhostMode } = useSecurity();
   
   useEffect(() => {
     const loadTags = async () => {
-      const allTags = await getAllTags();
+      const allTags = await getAllTags(isGhostMode);
       setTags(allTags);
       setIsLoading(false);
     };
     
     loadTags();
-  }, []);
+  }, [isGhostMode]);
   
   return { tags, isLoading };
 };
@@ -37,6 +48,7 @@ export const useTags = () => {
 export const useEntryOperations = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { isGhostMode } = useSecurity();
   
   const createNewEntry = useCallback(async (entryData: Parameters<typeof createEntry>[0]) => {
     setIsLoading(true);
@@ -88,20 +100,22 @@ export const useEntryOperations = () => {
     updateExistingEntry,
     deleteExistingEntry,
     isLoading,
-    error
+    error,
+    isGhostMode
   };
 };
 
 export const useSearch = (filters: SearchFilters) => {
   const [results, setResults] = useState<JournalEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { isGhostMode } = useSecurity();
   
   useEffect(() => {
     const performSearch = async () => {
       setIsLoading(true);
       
       try {
-        let filtered = await searchEntries(filters.query);
+        let filtered = await searchEntries(filters.query, isGhostMode);
         
         if (filters.tags.length > 0) {
           filtered = filtered.filter(entry =>
@@ -132,7 +146,7 @@ export const useSearch = (filters: SearchFilters) => {
     const timeoutId = setTimeout(performSearch, 300);
     
     return () => clearTimeout(timeoutId);
-  }, [filters]);
+  }, [filters, isGhostMode]);
   
   return { results, isLoading };
 };
@@ -230,18 +244,43 @@ export const useDataImport = () => {
 };
 
 export const useFavorites = () => {
+  const { isGhostMode } = useSecurity();
   const favorites = useLiveQuery(
-    () => db.entries.where('isFavorite').equals(1).reverse().toArray(),
-    []
+    () => {
+      if (isGhostMode) {
+        return db.entries.where('isFavorite').equals(1).reverse().toArray();
+      }
+      return db.entries.where('isFavorite').equals(1).and(e => !e.isHidden).reverse().toArray();
+    },
+    [isGhostMode]
   );
   
   return { favorites: favorites || [], isLoading: favorites === undefined };
 };
 
 export const useEntriesByDate = (date: string) => {
+  const { isGhostMode } = useSecurity();
   const entries = useLiveQuery(
-    () => db.entries.where('date').equals(date).reverse().toArray(),
-    [date]
+    () => {
+      if (isGhostMode) {
+        return db.entries.where('date').equals(date).reverse().toArray();
+      }
+      return db.entries.where('date').equals(date).and(e => !e.isHidden).reverse().toArray();
+    },
+    [date, isGhostMode]
+  );
+  
+  return { entries: entries || [], isLoading: entries === undefined };
+};
+
+export const useEntriesWithImages = () => {
+  const { isGhostMode } = useSecurity();
+  const entries = useLiveQuery(
+    async () => {
+      const allEntries = await db.entries.toArray();
+      return allEntries.filter(entry => entry.images.length > 0);
+    },
+    [isGhostMode]
   );
   
   return { entries: entries || [], isLoading: entries === undefined };

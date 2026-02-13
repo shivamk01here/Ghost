@@ -9,8 +9,8 @@ export class DayZeroDB extends Dexie {
   constructor() {
     super('DayZeroDB');
     
-    this.version(3).stores({
-      entries: 'id, createdAt, updatedAt, date, isFavorite, *tags, mood, device',
+    this.version(4).stores({
+      entries: 'id, createdAt, updatedAt, date, isFavorite, *tags, mood, device, isHidden',
       settings: 'theme, userName'
     });
   }
@@ -18,12 +18,13 @@ export class DayZeroDB extends Dexie {
 
 export const db = new DayZeroDB();
 
-export const createEntry = async (entryData: Omit<JournalEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<JournalEntry> => {
+export const createEntry = async (entryData: Omit<JournalEntry, 'id' | 'createdAt' | 'updatedAt' | 'isHidden'>): Promise<JournalEntry> => {
   const now = Date.now();
   const newEntry: JournalEntry = {
     id: uuidv4(),
     createdAt: now,
     updatedAt: now,
+    isHidden: false,
     ...entryData
   };
   
@@ -35,31 +36,70 @@ export const getEntry = async (id: string): Promise<JournalEntry | undefined> =>
   return await db.entries.get(id);
 };
 
-export const getAllEntries = async (): Promise<JournalEntry[]> => {
-  return await db.entries.orderBy('createdAt').reverse().toArray();
+export const getAllEntries = async (includeHidden = false): Promise<JournalEntry[]> => {
+  if (includeHidden) {
+    return await db.entries.orderBy('createdAt').reverse().toArray();
+  }
+  return await db.entries
+    .where('isHidden')
+    .equals(0)
+    .reverse()
+    .toArray();
 };
 
-export const getEntriesByDateRange = async (startDate: string, endDate: string): Promise<JournalEntry[]> => {
+export const getHiddenEntries = async (): Promise<JournalEntry[]> => {
+  return await db.entries
+    .where('isHidden')
+    .equals(1)
+    .reverse()
+    .toArray();
+};
+
+export const getEntriesByDateRange = async (startDate: string, endDate: string, includeHidden = false): Promise<JournalEntry[]> => {
+  if (includeHidden) {
+    return await db.entries
+      .where('date')
+      .between(startDate, endDate, true, true)
+      .reverse()
+      .toArray();
+  }
   return await db.entries
     .where('date')
     .between(startDate, endDate, true, true)
     .reverse()
+    .and(entry => !entry.isHidden)
     .toArray();
 };
 
-export const getEntriesByTag = async (tag: string): Promise<JournalEntry[]> => {
+export const getEntriesByTag = async (tag: string, includeHidden = false): Promise<JournalEntry[]> => {
+  if (includeHidden) {
+    return await db.entries
+      .where('tags')
+      .equals(tag)
+      .reverse()
+      .toArray();
+  }
   return await db.entries
     .where('tags')
     .equals(tag)
     .reverse()
+    .and(entry => !entry.isHidden)
     .toArray();
 };
 
-export const getFavoriteEntries = async (): Promise<JournalEntry[]> => {
+export const getFavoriteEntries = async (includeHidden = false): Promise<JournalEntry[]> => {
+  if (includeHidden) {
+    return await db.entries
+      .where('isFavorite')
+      .equals(1)
+      .reverse()
+      .toArray();
+  }
   return await db.entries
     .where('isFavorite')
     .equals(1)
     .reverse()
+    .and(entry => !entry.isHidden)
     .toArray();
 };
 
@@ -85,14 +125,14 @@ export const deleteEntry = async (id: string): Promise<boolean> => {
   return true;
 };
 
-export const searchEntries = async (query: string): Promise<JournalEntry[]> => {
+export const searchEntries = async (query: string, includeHidden = false): Promise<JournalEntry[]> => {
   const lowerQuery = query.toLowerCase().trim();
   
   if (!lowerQuery) {
-    return await getAllEntries();
+    return await getAllEntries(includeHidden);
   }
   
-  const allEntries = await getAllEntries();
+  const allEntries = await getAllEntries(includeHidden);
   
   return allEntries.filter(entry => {
     const contentMatch = entry.content.toLowerCase().includes(lowerQuery);
@@ -103,8 +143,8 @@ export const searchEntries = async (query: string): Promise<JournalEntry[]> => {
   });
 };
 
-export const getAllTags = async (): Promise<string[]> => {
-  const entries = await getAllEntries();
+export const getAllTags = async (includeHidden = false): Promise<string[]> => {
+  const entries = await getAllEntries(includeHidden);
   const allTags = new Set<string>();
   
   entries.forEach(entry => {
@@ -112,6 +152,27 @@ export const getAllTags = async (): Promise<string[]> => {
   });
   
   return Array.from(allTags).sort();
+};
+
+export const getEntriesForDay = async (dateString: string, includeHidden = false): Promise<JournalEntry[]> => {
+  if (includeHidden) {
+    return await db.entries
+      .where('date')
+      .equals(dateString)
+      .reverse()
+      .toArray();
+  }
+  return await db.entries
+    .where('date')
+    .equals(dateString)
+    .reverse()
+    .and(entry => !entry.isHidden)
+    .toArray();
+};
+
+export const getEntriesWithImages = async (includeHidden = false): Promise<JournalEntry[]> => {
+  const allEntries = await getAllEntries(includeHidden);
+  return allEntries.filter(entry => entry.images.length > 0);
 };
 
 export const getSettings = async (): Promise<AppSettings> => {
@@ -178,17 +239,4 @@ export const importData = async (data: { entries?: JournalEntry[]; settings?: Ap
   }
   
   return { success: importedEntries > 0, importedEntries, errors };
-};
-
-export const getEntriesForDay = async (dateString: string): Promise<JournalEntry[]> => {
-  return await db.entries
-    .where('date')
-    .equals(dateString)
-    .reverse()
-    .toArray();
-};
-
-export const getEntriesWithImages = async (): Promise<JournalEntry[]> => {
-  const allEntries = await getAllEntries();
-  return allEntries.filter(entry => entry.images.length > 0);
 };

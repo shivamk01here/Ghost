@@ -7,11 +7,8 @@ export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
 
 export const useSync = () => {
   const [status, setStatus] = useState<SyncStatus>('idle');
-  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('google_token'));
-  const [user, setUser] = useState<{name: string, email: string} | null>(() => {
-    const saved = localStorage.getItem('google_user');
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [isLoggedIn, setIsLoggedIn] = useState(() => GoogleDriveService.isLoggedIn());
+  const [user, setUser] = useState<{name: string, email: string} | null>(() => GoogleDriveService.getStoredUser());
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const restore = useCallback(async () => {
@@ -19,22 +16,20 @@ export const useSync = () => {
       setStatus('syncing');
       
       if (!GoogleDriveService.isAuthenticated()) {
-        await GoogleDriveService.authenticate();
+        const userInfo = await GoogleDriveService.authenticate();
         setIsLoggedIn(true);
+        setUser(userInfo);
       }
 
-      // 1. Download
       const encryptedData = await GoogleDriveService.downloadFile('backup.dayzero');
       if (!encryptedData) {
         throw new Error('No backup found in cloud');
       }
 
-      // 2. Decrypt
       const passphrase = localStorage.getItem('vault_passphrase') || 'default_passphrase';
       const jsonData = await EncryptionService.decrypt(encryptedData, passphrase);
       const data = JSON.parse(jsonData);
 
-      // 3. Import
       await importData(data);
       setStatus('success');
       setTimeout(() => setStatus('idle'), 3000);
@@ -50,42 +45,46 @@ export const useSync = () => {
   const sync = useCallback(async () => {
     try {
       setStatus('syncing');
+      setErrorMsg(null);
       
-      // 1. Authenticate if needed
-      let currentUser = user;
+      // Check if we already have a valid token
+      let hasValidToken = GoogleDriveService.isAuthenticated();
       let justLoggedIn = false;
-      if (!isLoggedIn || !GoogleDriveService.isAuthenticated()) {
-        currentUser = await GoogleDriveService.authenticate();
-        localStorage.setItem('google_token', 'true'); 
-        localStorage.setItem('google_user', JSON.stringify(currentUser));
-        setIsLoggedIn(true);
-        setUser(currentUser);
-        justLoggedIn = true;
+
+      if (!hasValidToken) {
+        // Try silent refresh first
+        const silentSuccess = await GoogleDriveService.ensureAuthenticated();
+        
+        if (silentSuccess) {
+          // Silent refresh worked - update user state
+          const storedUser = GoogleDriveService.getStoredUser();
+          if (storedUser) {
+            setUser(storedUser);
+            setIsLoggedIn(true);
+          }
+        } else {
+          // Need user interaction - show consent
+          const userInfo = await GoogleDriveService.authenticate();
+          setIsLoggedIn(true);
+          setUser(userInfo);
+          justLoggedIn = true;
+        }
       }
 
-      // CRITICAL: On first login, check if we should RESTORE instead of UPLOAD
-      // Only if local DB is empty
+      // On first login, check if we should restore instead of upload
       if (justLoggedIn) {
-         const count = await db.entries.count();
-         if (count === 0) {
-            // Attempt auto-restore
-            const restored = await restore();
-            if (restored) return; // Exit if restored (status is success)
-            // If restore failed (no backup), proceed to upload? 
-            // Better to stop and let user decide, or create empty backup?
-            // If no backup exists, creating one is fine.
-         }
+        const count = await db.entries.count();
+        if (count === 0) {
+          const restored = await restore();
+          if (restored) return;
+        }
       }
 
-      // 2. Export local data
       const data = await exportData();
       const jsonData = JSON.stringify(data);
-
-      // 3. Encrypt data
       const passphrase = localStorage.getItem('vault_passphrase') || 'default_passphrase';
       const encryptedData = await EncryptionService.encrypt(jsonData, passphrase);
 
-      // 4. Upload to Drive
       const success = await GoogleDriveService.uploadFile('backup.dayzero', encryptedData);
 
       if (success) {
@@ -103,12 +102,10 @@ export const useSync = () => {
         logout();
       }
     }
-  }, [isLoggedIn, user, restore]);
+  }, [restore]);
 
   const logout = useCallback(() => {
     GoogleDriveService.logout();
-    localStorage.removeItem('google_token');
-    localStorage.removeItem('google_user');
     setIsLoggedIn(false);
     setUser(null);
     setStatus('idle');

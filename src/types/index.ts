@@ -7,7 +7,7 @@ export interface JournalEntry {
   date: string;
   title: string;
   content: string;
-  heroImage?: string; // Deprecated: Moving to inline content
+  heroImage?: string;
   images: string[];
   tags: string[];
   location?: string;
@@ -15,11 +15,17 @@ export interface JournalEntry {
   weather?: string;
   device?: string;
   isFavorite: boolean;
+  isHidden: boolean;
 }
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
   userName: string;
+  ghostMode?: {
+    passphraseHash: string;
+    salt: string;
+    lastUnlockedAt?: number;
+  };
 }
 
 export type ViewMode = 'timeline' | 'calendar' | 'gallery';
