@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, Unlock, ArrowRight } from 'lucide-react';
+import { Lock, Unlock, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useSecurity } from '../contexts/SecurityContext';
 
 export const AppLock: React.FC = () => {
@@ -8,6 +8,7 @@ export const AppLock: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isAnimating, setIsAnimating] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Clear password when locked state changes
   useEffect(() => {
@@ -18,7 +19,7 @@ export const AppLock: React.FC = () => {
   }, [isLocked]);
 
   if (!isLocked && !isSetupRequired) return null;
-  if (isLoading) return null; // Or a loading spinner
+  if (isLoading) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,50 +50,61 @@ export const AppLock: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-background-light dark:bg-background-dark flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] bg-background flex items-center justify-center p-4">
        <div className="w-full max-w-sm text-center">
          <div className="mb-8 flex justify-center">
-            <div className="w-20 h-20 rounded-[2rem] bg-primary-500 shadow-2xl shadow-primary-500/40 flex items-center justify-center text-white">
+            <div className="w-20 h-20 rounded-[2rem] bg-primary text-primary-foreground shadow-2xl flex items-center justify-center">
                {isSetupRequired ? <Unlock size={32} strokeWidth={2.5} /> : <Lock size={32} strokeWidth={2.5} />}
             </div>
          </div>
          
-         <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">
+         <h1 className="text-3xl font-black text-foreground mb-2">
             {isSetupRequired ? 'Create Password' : 'Welcome Back'}
          </h1>
-         <p className="text-gray-500 dark:text-gray-400 mb-8 font-medium">
+         <p className="text-muted-foreground mb-8 font-medium">
             {isSetupRequired 
-              ? 'Secure your journal with a password. This will be synced to your Google account.' 
+              ? 'Secure your journal with a password.' 
               : 'Enter your password to unlock your journal.'}
          </p>
 
          <form onSubmit={handleSubmit} className={`space-y-4 ${isAnimating ? 'animate-shake' : ''}`}>
-           <input
-             type="password"
-             value={password}
-             onChange={(e) => setPassword(e.target.value)}
-             placeholder={isSetupRequired ? "Create Password" : "Enter Password"}
-             className="w-full px-6 py-4 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 font-bold text-center text-lg tracking-widest placeholder:tracking-normal placeholder:font-normal transition-all"
-             autoFocus
-           />
+           <div className="relative">
+             <input
+               type={showPassword ? "text" : "password"}
+               value={password}
+               onChange={(e) => setPassword(e.target.value)}
+               placeholder={isSetupRequired ? "Create Password" : "Enter Password"}
+               className="w-full px-6 py-4 rounded-xl bg-muted/50 border border-input focus:outline-none focus:ring-2 focus:ring-ring font-bold text-center text-lg tracking-widest placeholder:tracking-normal placeholder:font-normal transition-all text-foreground"
+               autoFocus
+             />
+             <button
+               type="button"
+               onClick={() => setShowPassword(!showPassword)}
+               className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+             >
+               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+             </button>
+           </div>
            
            {isSetupRequired && (
-             <input
-               type="password"
-               value={confirmPassword}
-               onChange={(e) => setConfirmPassword(e.target.value)}
-               placeholder="Confirm Password"
-               className="w-full px-6 py-4 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 font-bold text-center text-lg tracking-widest placeholder:tracking-normal placeholder:font-normal transition-all"
-             />
+             <div className="relative">
+               <input
+                 type={showPassword ? "text" : "password"}
+                 value={confirmPassword}
+                 onChange={(e) => setConfirmPassword(e.target.value)}
+                 placeholder="Confirm Password"
+                 className="w-full px-6 py-4 rounded-xl bg-muted/50 border border-input focus:outline-none focus:ring-2 focus:ring-ring font-bold text-center text-lg tracking-widest placeholder:tracking-normal placeholder:font-normal transition-all text-foreground"
+               />
+             </div>
            )}
 
            {error && (
-             <p className="text-red-500 text-sm font-bold animate-pulse">{error}</p>
+             <p className="text-destructive text-sm font-bold animate-pulse">{error}</p>
            )}
 
            <button
              type="submit"
-             className="w-full py-4 bg-primary-500 hover:bg-primary-600 text-white rounded-xl font-bold shadow-xl shadow-primary-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+             className="w-full py-4 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-bold shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
            >
              {isSetupRequired ? 'Set Password' : 'Unlock'}
              <ArrowRight size={20} />
@@ -100,7 +112,7 @@ export const AppLock: React.FC = () => {
          </form>
          
          {!isSetupRequired && (
-             <button onClick={() => window.location.reload()} className="mt-8 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 font-bold">
+             <button onClick={() => window.location.reload()} className="mt-8 text-xs text-muted-foreground hover:text-foreground font-bold">
                Forgot Password? (Clears Local Data)
              </button>
          )}

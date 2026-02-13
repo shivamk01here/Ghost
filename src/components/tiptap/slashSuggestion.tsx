@@ -22,8 +22,7 @@ import {
   Italic,
   Underline,
   Strikethrough,
-  Highlighter,
-  Palette
+  Highlighter
 } from 'lucide-react';
 
 interface CommandItem {

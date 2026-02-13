@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Plus, Tag as TagIcon } from 'lucide-react';
 import { db } from '../db';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface TagInputProps {
   tags: string[];
@@ -8,24 +10,23 @@ interface TagInputProps {
   placeholder?: string;
 }
 
-const TAG_COLORS = [
-  'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
-  'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
-  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+const TAG_COLOR_CLASSES = [
+  'bg-blue-100/50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+  'bg-green-100/50 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-green-200 dark:border-green-800',
+  'bg-purple-100/50 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+  'bg-yellow-100/50 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800',
+  'bg-pink-100/50 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300 border-pink-200 dark:border-pink-800',
+  'bg-indigo-100/50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+  'bg-red-100/50 text-red-700 dark:bg-red-900/40 dark:text-red-300 border-red-200 dark:border-red-800',
+  'bg-orange-100/50 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 border-orange-200 dark:border-orange-800',
 ];
 
-const getTagColor = (tag: string) => {
-  // Simple hash to get consistent color for each tag
+const getTagColorClass = (tag: string) => {
   let hash = 0;
   for (let i = 0; i < tag.length; i++) {
     hash = tag.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return TAG_COLORS[Math.abs(hash) % TAG_COLORS.length];
+  return TAG_COLOR_CLASSES[Math.abs(hash) % TAG_COLOR_CLASSES.length];
 };
 
 export const TagInput: React.FC<TagInputProps> = ({
@@ -40,7 +41,6 @@ export const TagInput: React.FC<TagInputProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch all existing tags for suggestions
   useEffect(() => {
     const fetchTags = async () => {
       try {
@@ -105,7 +105,6 @@ export const TagInput: React.FC<TagInputProps> = ({
     }
   };
 
-  // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -118,25 +117,30 @@ export const TagInput: React.FC<TagInputProps> = ({
 
   return (
     <div ref={containerRef} className="relative">
-      <div className="flex flex-wrap items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800 focus-within:border-primary-500/50 transition-colors">
-        {/* Existing Tags */}
+      <div 
+        className="flex flex-wrap items-center gap-1.5 p-2 bg-muted/50 rounded-xl border border-input focus-within:ring-1 focus-within:ring-ring transition-all"
+        onClick={() => inputRef.current?.focus()}
+      >
         {tags.map((tag) => (
-          <span
+          <Badge
             key={tag}
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${getTagColor(tag)}`}
+            variant="outline"
+            className={cn("gap-1 pr-1 pl-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border", getTagColorClass(tag))}
           >
-            <TagIcon size={10} />
+            <TagIcon size={8} className="mr-0.5 opacity-70" />
             {tag}
             <button
-              onClick={() => removeTag(tag)}
-              className="ml-0.5 p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                removeTag(tag);
+              }}
+              className="ml-1 p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors"
             >
               <X size={10} />
             </button>
-          </span>
+          </Badge>
         ))}
 
-        {/* Input */}
         <input
           ref={inputRef}
           type="text"
@@ -145,51 +149,37 @@ export const TagInput: React.FC<TagInputProps> = ({
           onKeyDown={handleKeyDown}
           onFocus={() => inputValue && setShowSuggestions(true)}
           placeholder={tags.length === 0 ? placeholder : ''}
-          className="flex-1 min-w-[100px] bg-transparent border-none outline-none text-xs text-gray-700 dark:text-gray-300 placeholder:text-gray-400"
+          className="flex-1 min-w-[80px] bg-transparent border-none outline-none text-xs text-foreground placeholder:text-muted-foreground ml-1"
         />
       </div>
 
-      {/* Suggestions Dropdown */}
-      {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden z-50">
+      {showSuggestions && (
+        <div className="absolute top-full left-0 right-0 mt-1.5 bg-popover text-popover-foreground rounded-xl shadow-md border border-border overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100">
           {suggestions.map((suggestion, index) => (
             <button
               key={suggestion}
               onClick={() => addTag(suggestion)}
-              className={`w-full text-left px-4 py-2.5 text-xs flex items-center gap-2 transition-colors ${
+              className={cn(
+                "w-full text-left px-3 py-2 text-xs flex items-center gap-2 transition-colors",
                 index === selectedIndex
-                  ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
+                  ? "bg-accent text-accent-foreground"
+                  : "hover:bg-muted"
+              )}
             >
-              <TagIcon size={12} className="text-gray-400" />
+              <TagIcon size={12} className="opacity-50" />
               {suggestion}
             </button>
           ))}
           
-          {/* Create new tag option */}
           {inputValue && !suggestions.includes(inputValue.toLowerCase()) && (
             <button
               onClick={() => addTag(inputValue)}
-              className="w-full text-left px-4 py-2.5 text-xs flex items-center gap-2 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 border-t border-gray-100 dark:border-gray-800"
+              className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 text-primary hover:bg-accent border-t border-border"
             >
               <Plus size={12} />
               Create "{inputValue}"
             </button>
           )}
-        </div>
-      )}
-
-      {/* Create new when no suggestions */}
-      {showSuggestions && suggestions.length === 0 && inputValue && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden z-50">
-          <button
-            onClick={() => addTag(inputValue)}
-            className="w-full text-left px-4 py-2.5 text-xs flex items-center gap-2 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20"
-          >
-            <Plus size={12} />
-            Create "{inputValue}"
-          </button>
         </div>
       )}
     </div>

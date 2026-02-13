@@ -48,26 +48,28 @@ export const useSync = () => {
       setErrorMsg(null);
       
       // Check if we already have a valid token
-      let hasValidToken = GoogleDriveService.isAuthenticated();
+      const hasValidToken = GoogleDriveService.isAuthenticated();
       let justLoggedIn = false;
 
       if (!hasValidToken) {
-        // Try silent refresh first
-        const silentSuccess = await GoogleDriveService.ensureAuthenticated();
-        
-        if (silentSuccess) {
-          // Silent refresh worked - update user state
-          const storedUser = GoogleDriveService.getStoredUser();
-          if (storedUser) {
-            setUser(storedUser);
-            setIsLoggedIn(true);
-          }
+        // Try silent refresh first if we have user info
+        if (GoogleDriveService.isLoggedIn()) {
+             try {
+               await GoogleDriveService.authenticate({ forceConsent: false });
+               setIsLoggedIn(true);
+             } catch (e) {
+               // Silent refresh failed, we need consent
+               const userInfo = await GoogleDriveService.authenticate();
+               setIsLoggedIn(true);
+               setUser(userInfo);
+               justLoggedIn = true;
+             }
         } else {
-          // Need user interaction - show consent
-          const userInfo = await GoogleDriveService.authenticate();
-          setIsLoggedIn(true);
-          setUser(userInfo);
-          justLoggedIn = true;
+            // First time login
+             const userInfo = await GoogleDriveService.authenticate();
+             setIsLoggedIn(true);
+             setUser(userInfo);
+             justLoggedIn = true;
         }
       }
 

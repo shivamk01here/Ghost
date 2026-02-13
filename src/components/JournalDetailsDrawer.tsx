@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { 
-  X, 
   MapPin, 
   Smartphone, 
   Clock, 
@@ -14,6 +13,16 @@ import {
 import { format } from 'date-fns';
 import type { JournalEntry } from '../types';
 import { ImageModal } from './ImageModal';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 
 interface JournalDetailsDrawerProps {
   isOpen: boolean;
@@ -57,39 +66,35 @@ export const JournalDetailsDrawer: React.FC<JournalDetailsDrawerProps> = ({
   ];
 
   return (
-    <>
-      <aside className={`
-        fixed top-0 right-0 h-screen w-80 bg-white dark:bg-gray-900 border-l border-gray-100 dark:border-gray-800
-        transform transition-transform duration-300 ease-in-out z-50 shadow-2xl
-        ${isOpen ? 'translate-x-0' : 'translate-x-full'}
-        flex flex-col
-      `}>
+    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent className="w-80 p-0 flex flex-col bg-background border-l border-border">
+        <VisuallyHidden.Root>
+          <SheetTitle>Entry Details</SheetTitle>
+        </VisuallyHidden.Root>
+
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50 dark:border-gray-800">
-          <h2 className="text-sm font-black uppercase tracking-widest text-gray-400">Details</h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
-            <X size={18} className="text-gray-400" />
-          </button>
-        </div>
+        <SheetHeader className="px-6 py-4 border-b border-border text-left">
+          <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Details</h2>
+        </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-8 space-y-10 custom-scrollbar">
           {/* Mood Section */}
           <section>
             <div className="flex items-center gap-2 mb-4">
-              <Smile size={14} className="text-primary-500" />
-              <span className="text-[10px] font-black uppercase tracking-wider text-gray-500">Your Mood</span>
+              <Smile size={14} className="text-primary" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Your Mood</span>
             </div>
             <div className="grid grid-cols-4 gap-2">
               {moods.map((m) => (
                 <button
                   key={m.label}
                   onClick={() => onUpdate({ mood: m.label })}
-                  className={`
-                    flex flex-col items-center justify-center p-3 rounded-2xl border transition-all
-                    ${entry.mood === m.label 
-                      ? 'bg-primary-50 border-primary-200 text-primary-600 dark:bg-primary-900/20 dark:border-primary-800' 
-                      : 'border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800'}
-                  `}
+                  className={cn(
+                    "flex flex-col items-center justify-center p-3 rounded-2xl border transition-all",
+                    entry.mood === m.label 
+                      ? "bg-primary/10 border-primary/20 text-primary" 
+                      : "border-border hover:bg-muted"
+                  )}
                 >
                   <span className="text-xl mb-1">{m.emoji}</span>
                   <span className="text-[9px] font-bold">{m.label}</span>
@@ -102,19 +107,19 @@ export const JournalDetailsDrawer: React.FC<JournalDetailsDrawerProps> = ({
           <section>
             <div className="flex items-center gap-2 mb-4">
               <Cloud size={14} className="text-blue-500" />
-              <span className="text-[10px] font-black uppercase tracking-wider text-gray-500">Weather</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Weather</span>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
               {weatherIcons.map((w) => (
                 <button
                   key={w.label}
                   onClick={() => onUpdate({ weather: w.label })}
-                  className={`
-                    flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl border transition-all
-                    ${entry.weather === w.label 
-                      ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/20 dark:border-blue-800' 
-                      : 'border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800'}
-                  `}
+                  className={cn(
+                    "flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl border transition-all",
+                    entry.weather === w.label 
+                      ? "bg-blue-500/10 border-blue-500/20 text-blue-500" 
+                      : "border-border hover:bg-muted"
+                  )}
                   title={w.label}
                 >
                   <span className="text-lg">{w.emoji}</span>
@@ -126,48 +131,49 @@ export const JournalDetailsDrawer: React.FC<JournalDetailsDrawerProps> = ({
           {/* Metadata section */}
           <section className="space-y-4">
             <div className="flex items-center gap-2 mb-4">
-              <History size={14} className="text-gray-400" />
-              <span className="text-[10px] font-black uppercase tracking-wider text-gray-500">Log Data</span>
+              <History size={14} className="text-muted-foreground" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Log Data</span>
             </div>
             
             <div className="space-y-3">
+
                <div className="flex items-start gap-3">
-                  <MapPin size={14} className="text-gray-300 mt-1" />
+                  <MapPin size={14} className="text-muted-foreground/70 mt-3" />
                   <div className="flex-1">
-                    <p className="text-[9px] font-black text-gray-400 uppercase">Location</p>
-                    <input 
+                    <p className="text-[9px] font-black text-muted-foreground uppercase mb-1">Location</p>
+                    <Input 
                       type="text" 
                       value={entry.location || ''} 
                       onChange={(e) => onUpdate({ location: e.target.value })}
                       placeholder="Where are you?"
-                      className="w-full bg-transparent border-none outline-none text-xs text-gray-900 dark:text-white p-0"
+                      className="h-8 text-xs bg-transparent border-border"
                     />
                   </div>
                </div>
 
                <div className="flex items-start gap-3">
-                  <Smartphone size={14} className="text-gray-300 mt-1" />
+                  <Smartphone size={14} className="text-muted-foreground/70 mt-1" />
                   <div className="flex-1">
-                    <p className="text-[9px] font-black text-gray-400 uppercase">Captured on</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-300">{entry.device || 'Windows Device'}</p>
+                    <p className="text-[9px] font-black text-muted-foreground uppercase">Captured on</p>
+                    <p className="text-xs text-muted-foreground">{entry.device || 'Windows Device'}</p>
                   </div>
                </div>
 
                <div className="flex items-start gap-3">
-                  <Clock size={14} className="text-gray-300 mt-1" />
+                  <Clock size={14} className="text-muted-foreground/70 mt-1" />
                   <div className="flex-1">
-                    <p className="text-[9px] font-black text-gray-400 uppercase">First Edit</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-300">
+                    <p className="text-[9px] font-black text-muted-foreground uppercase">First Edit</p>
+                    <p className="text-xs text-muted-foreground">
                       {entry.createdAt ? format(entry.createdAt, 'MMM d, yyyy · h:mm a') : 'Just now'}
                     </p>
                   </div>
                </div>
 
                <div className="flex items-start gap-3">
-                  <History size={14} className="text-gray-300 mt-1" />
+                  <History size={14} className="text-muted-foreground/70 mt-1" />
                   <div className="flex-1">
-                    <p className="text-[9px] font-black text-gray-400 uppercase">Latest Update</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-300">
+                    <p className="text-[9px] font-black text-muted-foreground uppercase">Latest Update</p>
+                    <p className="text-xs text-muted-foreground">
                       {entry.updatedAt ? format(entry.updatedAt, 'MMM d, yyyy · h:mm a') : 'Just now'}
                     </p>
                   </div>
@@ -178,8 +184,8 @@ export const JournalDetailsDrawer: React.FC<JournalDetailsDrawerProps> = ({
           {/* Attachments Section */}
           <section>
             <div className="flex items-center gap-2 mb-4">
-              <Paperclip size={14} className="text-gray-400" />
-              <span className="text-[10px] font-black uppercase tracking-wider text-gray-500">Attachments</span>
+              <Paperclip size={14} className="text-muted-foreground" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Attachments</span>
             </div>
             
             <div className="space-y-2">
@@ -188,7 +194,7 @@ export const JournalDetailsDrawer: React.FC<JournalDetailsDrawerProps> = ({
                    {entry.images.map((img, i) => (
                      <div 
                        key={i} 
-                       className="aspect-square rounded-lg overflow-hidden border border-gray-100 dark:border-gray-800 cursor-pointer hover:opacity-80 transition-opacity"
+                       className="aspect-square rounded-lg overflow-hidden border border-border cursor-pointer hover:opacity-80 transition-opacity"
                        onClick={() => setSelectedImage(img)}
                      >
                         <img src={img} alt="" className="w-full h-full object-cover" />
@@ -196,36 +202,36 @@ export const JournalDetailsDrawer: React.FC<JournalDetailsDrawerProps> = ({
                    ))}
                 </div>
               ) : (
-                <p className="text-[10px] text-gray-400 italic">No attachments added yet.</p>
+                <p className="text-[10px] text-muted-foreground italic">No attachments added yet.</p>
               )}
               
               <div className="flex flex-col gap-1 mt-4">
-                 <button className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-left transition-colors">
-                    <FileText size={14} className="text-blue-400" />
-                    <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400">PDF Document</span>
-                 </button>
-                 <button className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-left transition-colors">
-                    <Film size={14} className="text-purple-400" />
-                    <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400">Video Attachment</span>
-                 </button>
+                 <Button variant="ghost" className="justify-start h-auto py-2 px-3 hover:bg-muted w-full">
+                    <FileText size={14} className="text-blue-400 mr-2" />
+                    <span className="text-[10px] font-bold text-muted-foreground">PDF Document</span>
+                 </Button>
+                 <Button variant="ghost" className="justify-start h-auto py-2 px-3 hover:bg-muted w-full">
+                    <Film size={14} className="text-purple-400 mr-2" />
+                    <span className="text-[10px] font-bold text-muted-foreground">Video Attachment</span>
+                 </Button>
               </div>
             </div>
           </section>
         </div>
         
         {/* Footer */}
-        <div className="p-6 border-t border-gray-50 dark:border-gray-800">
-          <p className="text-[8px] font-black text-gray-300 uppercase letter tracking-[0.2em] text-center">
+        <div className="p-6 border-t border-border mt-auto">
+          <p className="text-[8px] font-black text-muted-foreground/50 uppercase letter tracking-[0.2em] text-center">
             Ghost · Encrypted Session
           </p>
         </div>
-      </aside>
+      </SheetContent>
 
       <ImageModal 
         src={selectedImage || ''} 
         isOpen={!!selectedImage} 
         onClose={() => setSelectedImage(null)} 
       />
-    </>
+    </Sheet>
   );
 };

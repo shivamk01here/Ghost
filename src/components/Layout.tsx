@@ -19,16 +19,18 @@ import {
   Check,
   AlertCircle
 } from 'lucide-react';
-import { useTheme } from '../hooks/useUI';
+import { useTheme } from '../components/theme-provider';
 import { useDataExport, useDataImport } from '../hooks/useDatabase';
 import { useSync } from '../hooks/useSync';
+import { Button } from './ui/button';
+import { cn } from '@/lib/utils';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebarCollapsed');
@@ -65,40 +67,39 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     { path: '/atlas', icon: Map, label: 'Atlas' },
   ];
 
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  }
+
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark flex">
+    <div className="min-h-screen bg-background flex text-foreground font-sans">
       {/* Mobile Menu Button */}
-      <button
+      <Button
+        variant="outline"
+        size="icon"
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="lg:hidden fixed top-3 left-3 z-50 p-1.5 rounded-lg bg-white dark:bg-gray-900 shadow-lg border border-gray-200 dark:border-gray-800"
+        className="lg:hidden fixed top-3 left-3 z-50 rounded-lg shadow-sm"
         aria-label="Toggle menu"
       >
         {isMobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
-      </button>
+      </Button>
 
         {/* Sidebar - Collapsible & Modern */}
         <aside
-          className={`
-            fixed lg:sticky lg:top-0 lg:h-screen z-40
-            ${isCollapsed ? 'w-16' : 'w-56'}
-            bg-sidebar-light dark:bg-sidebar-dark
-            border-r border-gray-200 dark:border-gray-700
-            transform transition-all duration-300 ease-in-out
-            ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-            flex flex-col overflow-hidden
-          `}
+          className={cn(
+            "fixed lg:sticky lg:top-0 lg:h-screen z-40 bg-card border-r border-border transform transition-all duration-300 ease-in-out flex flex-col overflow-hidden",
+            isCollapsed ? "w-16" : "w-56",
+            isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          )}
         >
           {/* New Entry Button - Always visible at top */}
-          <div className={`px-2 pb-2 pt-4 lg:pt-2 shrink-0 ${isCollapsed ? 'flex justify-center' : ''}`}>
+          <div className={cn("px-2 pb-2 pt-4 lg:pt-2 shrink-0", isCollapsed && "flex justify-center")}>
           <NavLink
             to="/editor/new"
-            className={`
-              flex items-center justify-center gap-1.5 
-              ${isCollapsed ? 'w-10 h-10 px-0' : 'w-full px-3 py-2'}
-              bg-primary-500 text-white rounded-xl font-bold text-xs 
-              shadow-lg shadow-primary-500/20 hover:bg-primary-600 
-              transition-all active:scale-95 hover:shadow-xl hover:shadow-primary-500/30
-            `}
+            className={cn(
+              "flex items-center justify-center gap-1.5 bg-primary text-primary-foreground rounded-lg font-bold text-xs shadow-md hover:bg-primary/90 transition-all active:scale-95",
+              isCollapsed ? "w-10 h-10 px-0" : "w-full px-3 py-2"
+            )}
             onClick={() => setIsMobileMenuOpen(false)}
           >
             <Plus size={isCollapsed ? 20 : 16} strokeWidth={isCollapsed ? 2.5 : 2} />
@@ -107,23 +108,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
 
         {/* Navigation - Icons only when collapsed */}
-        <nav className={`px-2 space-y-1 shrink-0 ${isCollapsed ? 'flex flex-col items-center' : ''}`}>
+        <nav className={cn("px-2 space-y-1 shrink-0", isCollapsed && "flex flex-col items-center")}>
           {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               end={item.path === '/'}
-              className={({ isActive }) => `
-                sidebar-link 
-                ${isCollapsed ? 'justify-center w-10 h-10 p-0' : 'py-2 px-3 text-xs'}
-                ${isActive ? 'active' : ''}
-                rounded-xl transition-all duration-200 hover:scale-105
-              `}
+              className={({ isActive }) => cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all hover:bg-accent hover:text-accent-foreground text-muted-foreground",
+                isActive && "bg-accent text-accent-foreground font-medium",
+                isCollapsed && "justify-center w-10 h-10 p-0"
+              )}
               onClick={() => setIsMobileMenuOpen(false)}
               title={isCollapsed ? item.label : undefined}
             >
               <item.icon size={isCollapsed ? 20 : 16} strokeWidth={isCollapsed ? 2 : 1.5} />
-              {!isCollapsed && <span className="font-medium">{item.label}</span>}
+              {!isCollapsed && <span>{item.label}</span>}
             </NavLink>
           ))}
         </nav>
@@ -132,36 +132,36 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="flex-1 min-h-0" />
 
         {/* Bottom Section - Utility buttons */}
-        <div className={`p-2 border-t border-gray-200 dark:border-gray-700 space-y-1 shrink-0 ${isCollapsed ? 'flex flex-col items-center' : ''}`}>
+        <div className={cn("p-2 border-t border-border space-y-1 shrink-0", isCollapsed && "flex flex-col items-center")}>
           {/* Settings, Profile & Sync */}
-          <div className={`flex flex-col gap-2 p-1 ${isCollapsed ? 'items-center' : ''}`}>
+          <div className={cn("flex flex-col gap-2 p-1", isCollapsed && "items-center")}>
             <NavLink 
               to="/settings"
-              className={({ isActive }) => `
-                flex items-center gap-2 p-1.5 rounded-xl transition-all
-                ${isActive ? 'bg-primary-50 text-primary-500 dark:bg-primary-500/10' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800'}
-                ${isCollapsed ? 'justify-center w-10 h-10' : 'w-full'}
-              `}
+              className={({ isActive }) => cn(
+                "flex items-center gap-2 p-1.5 rounded-lg transition-all hover:bg-accent hover:text-accent-foreground text-muted-foreground",
+                isActive && "bg-accent text-accent-foreground",
+                isCollapsed ? "justify-center w-10 h-10" : "w-full"
+              )}
               title="Settings"
             >
               <Settings size={isCollapsed ? 20 : 16} />
               {!isCollapsed && <span className="text-xs font-bold">Settings</span>}
             </NavLink>
 
-            <div className={`
-              flex items-center gap-2 p-1.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800
-              ${isCollapsed ? 'flex-col justify-center w-12 py-3' : 'w-full justify-between'}
-            `}>
+            <div className={cn(
+              "flex items-center gap-2 p-1.5 rounded-lg bg-muted/50 border border-border",
+              isCollapsed ? "flex-col justify-center w-12 py-3" : "w-full justify-between"
+            )}>
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-500 font-black text-[10px]">
+                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-primary font-black text-[10px]">
                   {user ? user.name.charAt(0) : '?'}
                 </div>
                 {!isCollapsed && (
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-gray-900 dark:text-white leading-tight truncate max-w-[80px]">
+                    <span className="text-[10px] font-black text-foreground leading-tight truncate max-w-[80px]">
                       {user ? user.name.split(' ')[0] : 'Guest'}
                     </span>
-                    <span className="text-[8px] text-gray-500 font-bold">{isLoggedIn ? 'Online' : 'Offline'}</span>
+                    <span className="text-[8px] text-muted-foreground font-bold">{isLoggedIn ? 'Online' : 'Offline'}</span>
                   </div>
                 )}
               </div>
@@ -169,14 +169,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <button 
                 onClick={sync}
                 disabled={status === 'syncing'}
-                className={`
-                  flex items-center justify-center rounded-lg transition-all duration-300
-                  ${isCollapsed ? 'w-8 h-8' : 'w-7 h-7'}
-                  ${status === 'syncing' ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-500' : 
-                    status === 'success' ? 'bg-green-100 dark:bg-green-900/30 text-green-500' :
-                    status === 'error' ? 'bg-red-100 dark:bg-red-900/30 text-red-500' :
-                    'bg-white dark:bg-gray-800 text-gray-400 shadow-sm border border-gray-100 dark:border-gray-700'}
-                `}
+                className={cn(
+                  "flex items-center justify-center rounded-md transition-all duration-300",
+                  isCollapsed ? "w-8 h-8" : "w-7 h-7",
+                  status === 'syncing' ? "bg-primary/10 text-primary" : 
+                  status === 'success' ? "bg-green-500/10 text-green-500" :
+                  status === 'error' ? "bg-destructive/10 text-destructive" :
+                  "bg-background text-muted-foreground shadow-sm border border-border"
+                )}
                 title={status === 'syncing' ? 'Syncing...' : 'Sync Now'}
               >
                 {status === 'syncing' ? <RefreshCw size={14} className="animate-spin" /> :
@@ -188,19 +188,24 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
 
           {/* Export/Import */}
-          <div className={`flex gap-1 ${isCollapsed ? 'flex-col items-center' : ''}`}>
-            <button
+          <div className={cn("flex gap-1", isCollapsed && "flex-col items-center")}>
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={exportToFile}
               disabled={isExporting}
-              className={`btn-secondary flex items-center justify-center gap-1 text-[9px] ${isCollapsed ? 'w-8 h-8 p-0' : 'flex-1 py-1 px-1'}`}
+              className={cn("text-[9px] h-8", isCollapsed ? "w-8 p-0" : "flex-1")}
               title="Export"
             >
               <Download size={isCollapsed ? 14 : 10} />
               {!isCollapsed && <span>{isExporting ? '...' : 'Export'}</span>}
-            </button>
-            <label className={`btn-secondary flex items-center justify-center gap-1 text-[9px] cursor-pointer ${isCollapsed ? 'w-8 h-8 p-0' : 'flex-1 py-1 px-1'}`} title="Import">
+            </Button>
+            <label className={cn(
+              "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80 h-8 text-[9px] cursor-pointer",
+              isCollapsed ? "w-8 p-0" : "flex-1 px-3"
+            )} title="Import">
               <Upload size={isCollapsed ? 14 : 10} />
-              {!isCollapsed && <span>{isImporting ? '...' : 'Import'}</span>}
+              {!isCollapsed && <span className="ml-1">{isImporting ? '...' : 'Import'}</span>}
               <input
                 type="file"
                 accept=".json"
@@ -212,56 +217,60 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
 
           {/* Theme Toggle */}
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={toggleTheme}
-            className={`w-full flex items-center justify-center gap-1 rounded-lg text-[9px] text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${isCollapsed ? 'w-8 h-8 p-0' : 'px-2 py-1'}`}
-            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            className={cn("w-full text-[9px] text-muted-foreground", isCollapsed ? "w-8 h-8 p-0" : "")}
+            title={theme === 'dark' ? 'Switch to Light mode' : 'Switch to Dark mode'}
           >
             {theme === 'dark' ? <Sun size={isCollapsed ? 16 : 10} /> : <Moon size={isCollapsed ? 16 : 10} />}
-            {!isCollapsed && <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>}
-          </button>
+            {!isCollapsed && <span className="ml-1">{theme === 'dark' ? 'Light' : 'Dark'}</span>}
+          </Button>
         </div>
       </aside>
 
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
       {/* Main Content */}
-      <main className="flex-1 min-h-screen overflow-auto bg-white dark:bg-black">
+      <main className="flex-1 min-h-screen overflow-auto bg-background">
         {/* Top Header Bar */}
-        <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800">
+        <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 bg-background/80 backdrop-blur-md border-b border-border">
           <div className="flex items-center gap-3">
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors hidden lg:flex"
+              className="hidden lg:flex"
               title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               <PanelLeft size={18} />
-            </button>
-            <div className="w-px h-4 bg-gray-200 dark:bg-gray-800 hidden lg:block" />
+            </Button>
+            <div className="w-px h-4 bg-border hidden lg:block" />
           </div>
           <div className="flex items-center gap-3">
             <NavLink 
               to="/search"
-              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
             >
               <Search size={18} />
             </NavLink>
             <button 
               onClick={sync}
               disabled={status === 'syncing'}
-              className={`
-                flex items-center justify-center rounded-full transition-all duration-300
-                ${status === 'syncing' ? 'w-8 h-8 bg-primary-100 dark:bg-primary-900/30 text-primary-500' : 
-                  status === 'success' ? 'w-8 h-8 bg-green-100 dark:bg-green-900/30 text-green-500' :
-                  status === 'error' ? 'w-8 h-8 bg-red-100 dark:bg-red-900/30 text-red-500' :
-                  'w-8 h-8 bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}
-              `}
+              className={cn(
+                "flex items-center justify-center rounded-full transition-all duration-300 w-8 h-8",
+                status === 'syncing' ? "bg-primary/10 text-primary" : 
+                status === 'success' ? "bg-green-500/10 text-green-500" :
+                status === 'error' ? "bg-destructive/10 text-destructive" :
+                "bg-muted text-muted-foreground hover:text-foreground"
+              )}
               title={status === 'syncing' ? 'Syncing...' : 'Sync to Cloud'}
             >
               {status === 'syncing' ? <RefreshCw size={16} className="animate-spin" /> :
@@ -272,7 +281,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
 
-        <div className={`${isEditorPage ? 'max-w-4xl mx-auto' : 'p-4'} pb-20`}>
+        <div className={cn(isEditorPage ? "max-w-4xl mx-auto" : "p-4", "pb-20")}>
           {children}
         </div>
       </main>

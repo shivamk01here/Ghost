@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { ArrowLeft, X, Loader2, CheckCircle, Plus, Calendar, Maximize2 } from 'lucide-react';
+import { X, Loader2, CheckCircle, Plus, Calendar, Maximize2 } from 'lucide-react';
 import { db } from '../db';
 import { v4 as uuidv4 } from 'uuid';
 import { processImage, validateImage } from '../utils/imageUtils';
@@ -10,6 +10,8 @@ import { ImageModal } from '../components/ImageModal';
 import { JournalDetailsDrawer } from '../components/JournalDetailsDrawer';
 import { TagInput } from '../components/TagInput';
 import type { JournalEntry } from '../types';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export const EditorPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -156,8 +158,6 @@ export const EditorPage = () => {
     return () => clearTimeout(timeoutId);
   }, [title, content, date, location, tags, images, mood, weather, isFavorite]);
 
-
-
   const handleInlineImageUpload = async (file: File): Promise<string> => {
     const validation = validateImage(file);
     if (!validation.valid) {
@@ -203,15 +203,9 @@ export const EditorPage = () => {
 
   return (
     <div className="pb-20 relative flex">
-      {/* Back Button */}
-      <button 
-        onClick={() => navigate(-1)}
-        className="fixed top-20 left-8 p-2 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 text-gray-500 hover:text-gray-900 dark:hover:text-white transition-all z-30"
-      >
-        <ArrowLeft size={18} />
-      </button>
 
-      <div className={`flex-1 transition-all duration-300 ${isDrawerOpen ? 'mr-80' : ''}`}>
+
+      <div className={cn("flex-1 transition-all duration-300", isDrawerOpen ? "mr-80" : "")}>
         <div className="max-w-screen-md mx-auto px-4 mt-8">
           {/* Title */}
           <input
@@ -219,7 +213,7 @@ export const EditorPage = () => {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Title your day..."
-            className="w-full text-4xl font-black bg-transparent border-none outline-none placeholder:text-gray-100 dark:placeholder:text-gray-900 mb-4 text-gray-900 dark:text-white tracking-tight"
+            className="w-full text-4xl font-black bg-transparent border-none outline-none placeholder:text-muted-foreground/30 mb-4 text-foreground tracking-tight"
           />
 
           {/* Tags */}
@@ -228,13 +222,13 @@ export const EditorPage = () => {
           </div>
           
           {/* Meta & Actions */}
-          <div className="flex items-center justify-between mb-8 border-b border-gray-50 dark:border-gray-900 pb-4">
+          <div className="flex items-center justify-between mb-8 border-b border-border pb-4">
             <div className="flex items-center gap-4 text-[10px] font-bold">
               <div className="relative group">
-                <button className="flex items-center gap-1.5 text-gray-400 hover:text-primary-500 transition-colors bg-gray-50 dark:bg-gray-900 px-3 py-1.5 rounded-xl">
+                <Button variant="secondary" size="sm" className="h-8 gap-2 text-[10px] font-bold">
                   <Calendar size={12} />
                   <span>{format(parseISO(date), 'MMMM d, yyyy')}</span>
-                </button>
+                </Button>
                 <input 
                   type="date"
                   value={date}
@@ -242,8 +236,8 @@ export const EditorPage = () => {
                   className="absolute inset-0 opacity-0 cursor-pointer"
                 />
               </div>
-              <div className="text-gray-200 dark:text-gray-800">|</div>
-              <div className="flex items-center gap-4 text-gray-400">
+              <div className="text-muted-foreground">|</div>
+              <div className="flex items-center gap-4 text-muted-foreground">
                 <span>
                   {isSaving ? 'Saving...' : 
                    hasUnsavedChanges ? 'Unsaved changes' : 
@@ -254,16 +248,16 @@ export const EditorPage = () => {
             </div>
             
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 text-[10px] text-gray-400 transition-all duration-300">
+              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground transition-all duration-300">
                 {isSaving ? (
                   <>
-                    <Loader2 size={10} className="animate-spin text-primary-500" />
-                    <span className="text-primary-500 font-medium">Saving...</span>
+                    <Loader2 size={10} className="animate-spin text-primary" />
+                    <span className="text-primary font-medium">Saving...</span>
                   </>
                 ) : hasUnsavedChanges ? (
                   <>
-                    <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" />
-                    <span className="text-gray-400">Unsaved</span>
+                    <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+                    <span className="text-muted-foreground">Unsaved</span>
                   </>
                 ) : lastSaved ? (
                   <>
@@ -272,12 +266,14 @@ export const EditorPage = () => {
                   </>
                 ) : null}
               </div>
-              <button
+              <Button
+                variant={isDrawerOpen ? "default" : "secondary"}
+                size="sm"
                 onClick={() => setIsDrawerOpen(!isDrawerOpen)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${isDrawerOpen ? 'bg-primary-500 text-white' : 'bg-gray-50 dark:bg-gray-900 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                className="h-8 text-[10px] gap-1.5"
               >
                 <span>Details</span>
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -307,11 +303,11 @@ export const EditorPage = () => {
       />
 
       {/* Images Gallery - Integrated Scroll Strip */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 py-3 px-4 z-20">
+      <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md border-t border-border py-3 px-4 z-20">
         <div className="max-w-screen-md mx-auto flex gap-3 overflow-x-auto scrollbar-hide">
           {/* Add Attachment Button */}
-          <label className="flex-shrink-0 w-12 h-12 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl flex items-center justify-center cursor-pointer transition-colors border border-dashed border-gray-200 dark:border-gray-700">
-            <Plus size={18} className="text-gray-400" />
+          <label className="flex-shrink-0 w-12 h-12 bg-muted hover:bg-muted/80 rounded-xl flex items-center justify-center cursor-pointer transition-colors border border-dashed border-border">
+            <Plus size={18} className="text-muted-foreground" />
             <input 
               type="file" 
               accept="image/*" 
@@ -322,7 +318,7 @@ export const EditorPage = () => {
           </label>
 
           {Array.isArray(images) && images.map((image, index) => (
-            <div key={index} className="relative flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden group border border-gray-100 dark:border-gray-800 shadow-sm">
+            <div key={index} className="relative flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden group border border-border shadow-sm">
               <img 
                 src={image} 
                 alt="" 

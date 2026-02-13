@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Image as ImageIcon, X } from 'lucide-react';
+import { Image as ImageIcon, ExternalLink } from 'lucide-react';
 import { useEntries } from '../hooks/useDatabase';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 
 export const GalleryPage: React.FC = () => {
   const { entries } = useEntries();
@@ -22,13 +29,13 @@ export const GalleryPage: React.FC = () => {
   if (allImages.length === 0) {
     return (
       <div className="max-w-4xl mx-auto text-center py-20">
-        <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-          <ImageIcon className="text-primary-500" size={32} />
+        <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
+          <ImageIcon className="text-muted-foreground" size={32} />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+        <h2 className="text-2xl font-bold text-foreground mb-3">
           No images yet
         </h2>
-        <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
           Your journal photos will appear here. Add images to your entries to build your visual timeline.
         </p>
       </div>
@@ -38,10 +45,10 @@ export const GalleryPage: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-2xl font-bold text-foreground">
           Gallery
         </h1>
-        <span className="text-sm text-gray-500 dark:text-gray-400">
+        <span className="text-sm text-muted-foreground">
           {allImages.length} {allImages.length === 1 ? 'photo' : 'photos'}
         </span>
       </div>
@@ -54,7 +61,7 @@ export const GalleryPage: React.FC = () => {
             className="break-inside-avoid cursor-pointer group"
             onClick={() => setSelectedImage({ src: image.src, entryId: image.entryId })}
           >
-            <div className="relative overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
+            <div className="relative overflow-hidden rounded-lg border border-border bg-muted">
               <img
                 src={image.src}
                 alt={`Journal photo ${idx + 1}`}
@@ -68,39 +75,30 @@ export const GalleryPage: React.FC = () => {
       </div>
 
       {/* Lightbox Modal */}
-      {selectedImage && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-          onClick={() => setSelectedImage(null)}
-        >
-          <button
-            onClick={() => setSelectedImage(null)}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-            aria-label="Close"
-          >
-            <X size={24} />
-          </button>
-          
-          <div
-            className="max-w-4xl max-h-[85vh] w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img
-              src={selectedImage.src}
-              alt="Gallery photo"
-              className="w-full h-full object-contain rounded-lg"
-            />
-            <div className="mt-4 flex justify-center">
-              <button
+      <Dialog open={!!selectedImage} onOpenChange={(open) => !open && setSelectedImage(null)}>
+        <DialogContent className="max-w-4xl w-full p-0 overflow-hidden bg-black/95 border-none">
+          <VisuallyHidden.Root>
+            <DialogTitle>Image Preview</DialogTitle>
+          </VisuallyHidden.Root>
+          {selectedImage && (
+            <div className="relative flex items-center justify-center p-4 h-[85vh]">
+              <img
+                src={selectedImage.src}
+                alt="Gallery photo"
+                className="max-w-full max-h-full object-contain rounded-sm"
+              />
+              <Button
                 onClick={() => navigate(`/editor/${selectedImage.entryId}`)}
-                className="btn-primary"
+                variant="secondary"
+                size="sm"
+                className="absolute bottom-6 right-6 gap-2"
               >
-                View Entry
-              </button>
+                View Entry <ExternalLink size={14} />
+              </Button>
             </div>
-          </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

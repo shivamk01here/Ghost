@@ -60,7 +60,7 @@ export const colorPalettes: Record<ThemeColor, { name: string; colors: string[];
 };
 
 // Generate CSS variables for each theme color
-const generateThemeVariables = (color: ThemeColor, isDark: boolean): Record<string, string> => {
+const generateThemeVariables = (color: ThemeColor, _isDark: boolean): Record<string, string> => {
   const palette = colorPalettes[color].colors;
   
   const lightVars: Record<string, string> = {

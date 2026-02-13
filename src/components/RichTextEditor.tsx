@@ -28,6 +28,7 @@ import {
   AlignCenter,
   AlignRight
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface RichTextEditorProps {
   content: string;
@@ -97,7 +98,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       attributes: {
         class: 'prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert focus:outline-none max-w-none min-h-[60vh] pb-32'
       },
-      handleDrop: (view, event, slice, moved) => {
+      handleDrop: (view, event, _slice, moved) => {
         if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) {
           const file = event.dataTransfer.files[0];
           if (file.type.startsWith('image/') && onImageUpload) {
@@ -172,126 +173,132 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       {/* Notion-style Bubble Menu for text selection */}
       <BubbleMenu 
         editor={editor} 
-        tippyOptions={{ 
-          duration: 100,
-          placement: 'top',
-        }}
-        className="flex items-center gap-0.5 p-1 bg-gray-900 dark:bg-white rounded-xl shadow-2xl border border-white/10 dark:border-black/10"
+        className="flex items-center gap-0.5 p-1 bg-popover text-popover-foreground rounded-xl shadow-lg border border-border"
       >
         {/* Text Format */}
         <button
           onClick={() => editor.chain().focus().toggleBold().run()}
-          className={`p-2 rounded-lg transition-colors ${
+          className={cn(
+            "p-2 rounded-lg transition-colors",
             editor.isActive('bold') 
-              ? 'bg-white/20 text-white dark:bg-black/20 dark:text-gray-900' 
-              : 'text-white/70 dark:text-gray-600 hover:text-white dark:hover:text-gray-900 hover:bg-white/10 dark:hover:bg-black/10'
-          }`}
+              ? "bg-accent text-accent-foreground" 
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
           title="Bold"
         >
           <Bold size={14} />
         </button>
         <button
           onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={`p-2 rounded-lg transition-colors ${
+          className={cn(
+            "p-2 rounded-lg transition-colors",
             editor.isActive('italic') 
-              ? 'bg-white/20 text-white dark:bg-black/20 dark:text-gray-900' 
-              : 'text-white/70 dark:text-gray-600 hover:text-white dark:hover:text-gray-900 hover:bg-white/10 dark:hover:bg-black/10'
-          }`}
+              ? "bg-accent text-accent-foreground" 
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
           title="Italic"
         >
           <Italic size={14} />
         </button>
         <button
           onClick={() => editor.chain().focus().toggleUnderline().run()}
-          className={`p-2 rounded-lg transition-colors ${
+          className={cn(
+            "p-2 rounded-lg transition-colors",
             editor.isActive('underline') 
-              ? 'bg-white/20 text-white dark:bg-black/20 dark:text-gray-900' 
-              : 'text-white/70 dark:text-gray-600 hover:text-white dark:hover:text-gray-900 hover:bg-white/10 dark:hover:bg-black/10'
-          }`}
+              ? "bg-accent text-accent-foreground" 
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
           title="Underline"
         >
           <UnderlineIcon size={14} />
         </button>
         <button
           onClick={() => editor.chain().focus().toggleStrike().run()}
-          className={`p-2 rounded-lg transition-colors ${
+          className={cn(
+            "p-2 rounded-lg transition-colors",
             editor.isActive('strike') 
-              ? 'bg-white/20 text-white dark:bg-black/20 dark:text-gray-900' 
-              : 'text-white/70 dark:text-gray-600 hover:text-white dark:hover:text-gray-900 hover:bg-white/10 dark:hover:bg-black/10'
-          }`}
+              ? "bg-accent text-accent-foreground" 
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
           title="Strikethrough"
         >
           <Strikethrough size={14} />
         </button>
         
-        <div className="w-px h-4 bg-white/20 dark:bg-black/20 mx-1" />
+        <div className="w-px h-4 bg-border mx-1" />
         
         <button
           onClick={() => editor.chain().focus().toggleHighlight().run()}
-          className={`p-2 rounded-lg transition-colors ${
+          className={cn(
+            "p-2 rounded-lg transition-colors",
             editor.isActive('highlight') 
-              ? 'bg-yellow-500/20 text-yellow-400' 
-              : 'text-white/70 dark:text-gray-600 hover:text-yellow-400 hover:bg-white/10 dark:hover:bg-black/10'
-          }`}
+              ? "bg-yellow-500/20 text-yellow-500" 
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
           title="Highlight"
         >
           <Highlighter size={14} />
         </button>
         <button
           onClick={() => editor.chain().focus().toggleCode().run()}
-          className={`p-2 rounded-lg transition-colors ${
+          className={cn(
+            "p-2 rounded-lg transition-colors",
             editor.isActive('code') 
-              ? 'bg-white/20 text-white dark:bg-black/20 dark:text-gray-900' 
-              : 'text-white/70 dark:text-gray-600 hover:text-white dark:hover:text-gray-900 hover:bg-white/10 dark:hover:bg-black/10'
-          }`}
+              ? "bg-accent text-accent-foreground" 
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
           title="Inline Code"
         >
           <Code size={14} />
         </button>
         <button
           onClick={setLink}
-          className={`p-2 rounded-lg transition-colors ${
+          className={cn(
+            "p-2 rounded-lg transition-colors",
             editor.isActive('link') 
-              ? 'bg-primary-500/20 text-primary-400' 
-              : 'text-white/70 dark:text-gray-600 hover:text-primary-400 hover:bg-white/10 dark:hover:bg-black/10'
-          }`}
+              ? "bg-primary/20 text-primary" 
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
           title="Add Link"
         >
           <LinkIcon size={14} />
         </button>
 
-        <div className="w-px h-4 bg-white/20 dark:bg-black/20 mx-1" />
+        <div className="w-px h-4 bg-border mx-1" />
 
         {/* Alignment */}
         <button
           onClick={() => editor.chain().focus().setTextAlign('left').run()}
-          className={`p-2 rounded-lg transition-colors ${
+          className={cn(
+            "p-2 rounded-lg transition-colors",
             editor.isActive({ textAlign: 'left' }) 
-              ? 'bg-white/20 text-white dark:bg-black/20 dark:text-gray-900' 
-              : 'text-white/70 dark:text-gray-600 hover:text-white dark:hover:text-gray-900 hover:bg-white/10 dark:hover:bg-black/10'
-          }`}
+              ? "bg-accent text-accent-foreground" 
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
           title="Align Left"
         >
           <AlignLeft size={14} />
         </button>
         <button
           onClick={() => editor.chain().focus().setTextAlign('center').run()}
-          className={`p-2 rounded-lg transition-colors ${
+          className={cn(
+            "p-2 rounded-lg transition-colors",
             editor.isActive({ textAlign: 'center' }) 
-              ? 'bg-white/20 text-white dark:bg-black/20 dark:text-gray-900' 
-              : 'text-white/70 dark:text-gray-600 hover:text-white dark:hover:text-gray-900 hover:bg-white/10 dark:hover:bg-black/10'
-          }`}
+              ? "bg-accent text-accent-foreground" 
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
           title="Align Center"
         >
           <AlignCenter size={14} />
         </button>
         <button
           onClick={() => editor.chain().focus().setTextAlign('right').run()}
-          className={`p-2 rounded-lg transition-colors ${
+          className={cn(
+            "p-2 rounded-lg transition-colors",
             editor.isActive({ textAlign: 'right' }) 
-              ? 'bg-white/20 text-white dark:bg-black/20 dark:text-gray-900' 
-              : 'text-white/70 dark:text-gray-600 hover:text-white dark:hover:text-gray-900 hover:bg-white/10 dark:hover:bg-black/10'
-          }`}
+              ? "bg-accent text-accent-foreground" 
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
           title="Align Right"
         >
           <AlignRight size={14} />
@@ -306,8 +313,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
       {/* Hint for new users */}
       {editor.isEmpty && (
-        <div className="absolute top-0 left-0 pointer-events-none text-gray-300 dark:text-gray-600 text-lg">
-          Type <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs font-medium">/</kbd> for commands...
+        <div className="absolute top-0 left-0 pointer-events-none text-muted-foreground/50 text-lg">
+          Type <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs font-medium text-muted-foreground">/</kbd> for commands...
         </div>
       )}
     </div>

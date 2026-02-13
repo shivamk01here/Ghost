@@ -25,7 +25,7 @@ export class EncryptionService {
     return window.crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
-        salt,
+        salt: salt as any,
         iterations: KEY_STRETCH_ITERATIONS,
         hash: 'SHA-256',
       },
