@@ -1,0 +1,26 @@
+﻿Alias name: androiddebugkey
+Creation date: Mar 10, 2026
+Entry type: PrivateKeyEntry
+Certificate chain length: 1
+Certificate[1]:
+Owner: CN=shivam, OU=ink, O=ink, L=ggn, ST=up, C=IN
+Issuer: CN=shivam, OU=ink, O=ink, L=ggn, ST=up, C=IN
+Serial number: e3eba7f2e2ee53a3
+Valid from: Tue Mar 10 16:12:12 IST 2026 until: Sat Jul 26 16:12:12 IST 2053
+Certificate fingerprints:
+	 SHA1: C8:C2:04:01:90:31:A7:7A:4A:73:84:11:8C:96:96:B2:E7:8B:54:CC
+	 SHA256: 08:AA:2C:62:30:FF:08:B8:E3:70:05:50:2D:CC:B8:3F:B5:5C:FF:18:52:5C:89:25:F4:64:2C:3E:E5:4E:77:56
+Signature algorithm name: SHA384withRSA
+Subject Public Key Algorithm: 2048-bit RSA key
+Version: 3
+
+Extensions: 
+
+#1: ObjectId: 2.5.29.14 Criticality=false
+SubjectKeyIdentifier [
+KeyIdentifier [
+0000: A0 2B 18 FB D9 E8 AD 7A   7D 48 BE 87 EE 98 E1 1F  .+.....z.H......
+0010: 2B 6B 7D 82                                        +k..
+]
+]
+
