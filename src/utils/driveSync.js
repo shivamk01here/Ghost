@@ -1,14 +1,19 @@
-import * as AuthSession from 'expo-auth-session';
-import * as WebBrowser from 'expo-web-browser';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as SecureStore from 'expo-secure-store';
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
-import Constants from 'expo-constants';
 import { GOOGLE_CONFIG } from '../config/google';
 import { encrypt, decrypt } from './encryption';
 import { loadEntries, saveEntries } from './storage';
+import { useState } from 'react';
 
-WebBrowser.maybeCompleteAuthSession();
+// Configure Google Sign-In
+GoogleSignin.configure({
+  scopes: GOOGLE_CONFIG.scopes,
+  webClientId: GOOGLE_CONFIG.expoClientId, // Required for getting the serverAuthCode on Android
+  offlineAccess: true,
+  forceCodeForRefreshToken: true,
+});
 
 const STORE = {
   ACCESS_TOKEN:  'ghost_drive_access_token',
@@ -27,76 +32,53 @@ const DECOY_FILE   = 'ghost_vault_decoy.enc';
 // ── Auth ───────────────────────────────────────────────────────────────────
 
 export function useGoogleAuth() {
-  // 🔴 CRITICAL FIX: Google explicitly blocks Native Android Client IDs from requesting offline Refresh Tokens ('code' response type) over custom app URIs.
-  // To bypass this, we MUST use the Web Client ID (expoClientId) and route through the strict HTTPS Expo Auth Proxy.
-  const clientId = GOOGLE_CONFIG.expoClientId;
+  const [response, setResponse] = useState(null);
 
-  const redirectUri = AuthSession.makeRedirectUri({ 
-    useProxy: true,
-    projectNameForProxy: '@shivam01here/ghost-journal'
-  });
+  const promptAsync = async () => {
+    try {
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      setResponse({ type: 'success', userInfo });
+      return { type: 'success', userInfo };
+    } catch (error) {
+      console.error('Sign-in error:', error);
+      setResponse({ type: 'error', error });
+      return { type: 'error', error };
+    }
+  };
 
-  const discovery = AuthSession.useAutoDiscovery('https://accounts.google.com');
-
-  const [request, response, promptAsync] = AuthSession.useAuthRequest(
-    {
-      clientId,
-      scopes: GOOGLE_CONFIG.scopes,
-      redirectUri,
-      responseType: AuthSession.ResponseType.Code,
-      usePKCE: true,
-      extraParams: { access_type: 'offline', prompt: 'consent' },
-    },
-    discovery
-  );
-
-  return { request, response, promptAsync, redirectUri };
+  return { request: {}, response, promptAsync };
 }
 
-export async function handleAuthResponse(response, request) {
+export async function handleAuthResponse(response) {
   if (response?.type !== 'success') return { success: false, error: 'Auth cancelled' };
 
   try {
-    const clientId = Platform.OS === 'ios'
-      ? GOOGLE_CONFIG.iosClientId
-      : GOOGLE_CONFIG.androidClientId;
-
-    const redirectUri = AuthSession.makeRedirectUri({ scheme: 'ghostjournal' });
-
-    const discovery = {
-      authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-      tokenEndpoint:         'https://oauth2.googleapis.com/token',
-      revocationEndpoint:    'https://oauth2.googleapis.com/revoke',
-    };
-
-    const tokenResult = await AuthSession.exchangeCodeAsync(
-      {
-        clientId,
-        code: response.params.code,
-        redirectUri,
-        extraParams: request.codeVerifier ? { code_verifier: request.codeVerifier } : undefined,
-      },
-      discovery
-    );
-
-    const { accessToken, refreshToken } = tokenResult;
+    const { userInfo } = response;
+    
+    // Get tokens (access token is needed for Drive API)
+    const { accessToken } = await GoogleSignin.getTokens();
     if (!accessToken) return { success: false, error: 'No token received' };
 
     await SecureStore.setItemAsync(STORE.ACCESS_TOKEN, accessToken);
-    if (refreshToken) await SecureStore.setItemAsync(STORE.REFRESH_TOKEN, refreshToken);
+    // Refresh token is handled internally by GoogleSignin, but we can store the email
+    if (userInfo.user.email) {
+      await SecureStore.setItemAsync(STORE.EMAIL, userInfo.user.email);
+    }
 
-    const userRes = await fetchWithAuth('https://www.googleapis.com/oauth2/v2/userinfo');
-    const user = await userRes.json();
-
-    if (user.email) await SecureStore.setItemAsync(STORE.EMAIL, user.email);
-
-    return { success: true, email: user.email };
+    return { success: true, email: userInfo.user.email };
   } catch (e) {
+    console.error('handleAuthResponse error:', e);
     return { success: false, error: e.message };
   }
 }
 
 export async function disconnectDrive() {
+  try {
+    await GoogleSignin.signOut();
+  } catch (e) {
+    console.warn('Sign out failed:', e);
+  }
   await Promise.all([
     SecureStore.deleteItemAsync(STORE.ACCESS_TOKEN),
     SecureStore.deleteItemAsync(STORE.REFRESH_TOKEN),
@@ -129,25 +111,22 @@ async function fetchWithAuth(url, options = {}) {
   let res = await fetch(url, { ...options, headers: makeHeaders(token) });
 
   if (res.status === 401) {
-    const refreshToken = await SecureStore.getItemAsync(STORE.REFRESH_TOKEN);
-    if (!refreshToken) throw new Error('Session expired, please reconnect Drive.');
-
-    const clientId = Platform.OS === 'ios' ? GOOGLE_CONFIG.iosClientId : GOOGLE_CONFIG.androidClientId;
-    
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `client_id=${clientId}&refresh_token=${refreshToken}&grant_type=refresh_token`,
-    });
-
-    if (!tokenRes.ok) throw new Error('Failed to refresh authentication session');
-    
-    const data = await tokenRes.json();
-    token = data.access_token;
-    await SecureStore.setItemAsync(STORE.ACCESS_TOKEN, token);
-
-    // Retry actual request
-    res = await fetch(url, { ...options, headers: makeHeaders(token) });
+    try {
+      // Try to refresh the token silently
+      await GoogleSignin.signInSilently();
+      const tokens = await GoogleSignin.getTokens();
+      token = tokens.accessToken;
+      
+      if (!token) throw new Error('Failed to refresh token');
+      
+      await SecureStore.setItemAsync(STORE.ACCESS_TOKEN, token);
+      
+      // Retry actual request
+      res = await fetch(url, { ...options, headers: makeHeaders(token) });
+    } catch (e) {
+      console.error('Refresh failed:', e);
+      throw new Error('Session expired, please reconnect Drive.');
+    }
   }
 
   return res;
